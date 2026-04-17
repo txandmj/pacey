@@ -1,8 +1,25 @@
-.header1 {
-  color: #61dafb; /* Blue color for the heading */
-  margin: 0px 0;
+.about-section {
+  margin-bottom: 20px;
+}
+.about-section h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.about-section ul,
+.about-section ol {
+  padding-left: 20px;
+  color: #2d3748;
+  font-size: 0.92rem;
+  line-height: 1.8;
 }
 
-.bullet-point {
-  list-style-type: None;
+.nav-row {
+  display: flex;
+  gap: 10px;
 }
+.nav-row .btn { flex: 1; }
+.nav-row .btn-outline { flex: 0 0 auto; padding: 13px 20px; }

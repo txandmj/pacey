@@ -17,11 +17,12 @@ async function textToJSON(filepath) {
     return data;
 }
 
-const IMG_PATH = "./boston.png";
-
-(async () => {
+if (require.main === module) {
+  const IMG_PATH = "./boston.png";
+  (async () => {
     const text = await textToJSON(IMG_PATH);
     console.log('Recognized text:', JSON.stringify(text));
-})();
+  })();
+}
 
 module.exports = textToJSON;

@@ -15,7 +15,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Navigate to="/about" replace />} />
+        <Route path="/" element={<Navigate to="/camera" replace />} />
         <Route path="/about" element={<About />} />
         <Route path="/camera" element={<Camera />} />
         <Route path="/process" element={<Process />} />

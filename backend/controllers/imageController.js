@@ -45,20 +45,21 @@ exports.saveImage = async (req, res) => {
         return res.status(400).json({ error: "Image data is missing." });
     }
 
-    // Extract the image format and validate it
-    const match = base64Image.match(/^data:image\/(png|jpg|jpeg);base64,/);
-    if (!match) {
+    // Accept images (PNG/JPG) and PDFs
+    const imgMatch = base64Image.match(/^data:image\/(png|jpg|jpeg);base64,/);
+    const pdfMatch = base64Image.match(/^data:application\/pdf;base64,/);
+    if (!imgMatch && !pdfMatch) {
         return res.status(400).json({
-            error: "Invalid image format. Only PNG, JPG, and JPEG are allowed.",
+            error: "Invalid format. Only PNG, JPG, JPEG, and PDF are allowed.",
         });
     }
 
     // Remove the data URL prefix
-    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+    const base64Data = base64Image.replace(/^data:[^;]+;base64,/, "");
 
     // Generate filename based on timestamp
     const timestamp = Date.now();
-    const extension = match[1];
+    const extension = pdfMatch ? 'pdf' : imgMatch[1];
     const filename = `${timestamp}.${extension}`;
     const imagePath = path.join(__dirname, "../images", filename);
 
@@ -80,6 +81,12 @@ exports.saveImage = async (req, res) => {
 
             return res.status(201).json({
                 message: "Image saved and patient record created successfully.",
+                data: {
+                    implant_date: data.pacemaker_dependent,
+                    pacemaker_manufacturer: data.pacemaker_manufacturer,
+                    impedance: data.impedance,
+                    battery: data.magnet_response,
+                },
             });
         } catch (error) {
             console.error("Failed to save patient record:", error);

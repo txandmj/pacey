@@ -17,7 +17,7 @@ const Patient = sequelize.define('Patient', {
         allowNull: true,
     },
     pacemaker_manufacturer: {
-        type: DataTypes.STRING(50),
+        type: DataTypes.STRING(200),
         allowNull: true,
     },
     magnet_response: {
@@ -25,7 +25,7 @@ const Patient = sequelize.define('Patient', {
         allowNull: true,
     },
     impedance: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING(200),
         allowNull: true,
     },
     image_path: {

@@ -8,7 +8,10 @@ const path = require('path');
 function callPythonScript(input) {
   return new Promise((resolve, reject) => {
     // Spawn a new child process to run the Python script
-    const pythonProcess = spawn('python', ['pdf_to_png.py', input]);
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const pythonProcess = spawn(pythonCmd, [path.join(__dirname, 'pdf_to_png.py'), input], {
+      cwd: __dirname  // ensures ./converted_files resolves to parser/converted_files/
+    });
     let output = '';
     let errorOutput = '';
 
@@ -59,7 +62,8 @@ async function parse_document(doc_path) {
     }
 
     all_text = "";
-    const directoryPath = './converted_files';
+    const directoryPath = path.join(__dirname, 'converted_files');
+    if (!fs.existsSync(directoryPath)) fs.mkdirSync(directoryPath, { recursive: true });
     const files = await fs.promises.readdir(directoryPath);
 
     const promises = files.map(async (file) => {
@@ -77,13 +81,10 @@ async function parse_document(doc_path) {
     console.log("ALL TEXT: ", all_text);
 
     // delete the files in the converted_files directory after extracting text
-    fs.readdir(directoryPath, (err, files) => {
-      if (err) throw err;
-
-      for (const file of files) {
-        fs.unlink(path.join(directoryPath, file), (err) => {
-          if (err) throw err;
-        });
+    fs.readdir(directoryPath, (err, dirFiles) => {
+      if (err) return;
+      for (const file of dirFiles) {
+        fs.unlink(path.join(directoryPath, file), () => {});
       }
     });
 

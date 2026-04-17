@@ -1,5 +1,4 @@
 import fitz
-import easyocr
 import sys
 
 # file_name = "BosSci CRTD.pdf"

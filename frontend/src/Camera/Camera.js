@@ -1,195 +1,207 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import "../App.css";
 import "./Camera.css";
 
+const LABELS = {
+  pacemaker_manufacturer: "Manufacturer / Device",
+  implant_date:           "Implant Date",
+  impedance:              "Impedance (Ω)",
+  battery:                "Battery Status",
+};
+
 function Camera() {
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
-    const [isCaptured, setIsCaptured] = useState(false);
-    const [error, setError] = useState(null);
-    const [imageFormat] = useState("image/png");
-    const [imageDataUrl, setImageDataUrl] = useState(null);
-    const [devices, setDevices] = useState([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState(null);
-    const navigate = useNavigate();
+  const [currentFile, setCurrentFile]   = useState(null);
+  const [previewSrc, setPreviewSrc]     = useState(null);
+  const [isPdf, setIsPdf]               = useState(false);
+  const [isAnalyzing, setIsAnalyzing]   = useState(false);
+  const [results, setResults]           = useState(null);
+  const [error, setError]               = useState(null);
+  const [isDragging, setIsDragging]     = useState(false);
+  const fileInputRef   = useRef();
+  const cameraInputRef = useRef();
+  const navigate = useNavigate();
 
-    const startCamera = async (deviceId) => {
-        try {
-            const constraints = {
-                video: {
-                    deviceId: deviceId ? { exact: deviceId } : undefined,
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
-            };
+  const handleFile = (file) => {
+    if (!file) return;
+    setCurrentFile(file);
+    setResults(null);
+    setError(null);
+    const pdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+    setIsPdf(pdf);
+    if (!pdf) {
+      const reader = new FileReader();
+      reader.onload = (e) => setPreviewSrc(e.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setPreviewSrc(null);
+    }
+  };
 
-            const stream = await navigator.mediaDevices.getUserMedia(
-                constraints
-            );
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-            }
-        } catch (error) {
-            setError("Error accessing the camera. Please check permissions.");
-            console.error("Error accessing the camera", error);
-        }
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  };
+
+  const analyze = () => {
+    if (!currentFile) return;
+    setIsAnalyzing(true);
+    setResults(null);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+        const resp = await fetch(`${API_URL}/api/images/upload`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64Image: e.target.result }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.error || "Analysis failed");
+        setResults(json.data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsAnalyzing(false);
+      }
     };
+    reader.readAsDataURL(currentFile);
+  };
 
-    const getDevices = async () => {
-        try {
-            const mediaDevices =
-                await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = mediaDevices.filter(
-                (device) => device.kind === "videoinput"
-            );
-            setDevices(videoDevices);
-            if (videoDevices.length > 0) {
-                setSelectedDeviceId(videoDevices[0].deviceId);
-                startCamera(videoDevices[0].deviceId);
-            }
-        } catch (error) {
-            console.error("Error fetching media devices:", error);
-        }
-    };
+  const formatValue = (key, val) => {
+    if (key === "implant_date") {
+      return typeof val === "number" && val > 100000
+        ? new Date(val).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        : <span className="unknown">not found</span>;
+    }
+    if (key === "battery") {
+      return <span className={`badge ${val === "ON" ? "badge-on" : "badge-off"}`}>{val}</span>;
+    }
+    if (!val || val === "unknown" || val === "TBD") {
+      return <span className="unknown">{val || "not found"}</span>;
+    }
+    return val;
+  };
 
-    useEffect(() => {
-        getDevices();
+  return (
+    <div className="page">
+      <div className="card">
+        <h1>🫀 Pacey</h1>
+        <p className="subtitle">AI-powered pacemaker interrogation report analyzer</p>
 
-        return () => {
-            if (videoRef.current && videoRef.current.srcObject) {
-                const tracks = videoRef.current.srcObject.getTracks();
-                tracks.forEach((track) => track.stop());
-            }
-        };
-    }, []);
-
-    const handleDeviceChange = (e) => {
-        const deviceId = e.target.value;
-        setSelectedDeviceId(deviceId);
-        startCamera(deviceId);
-    };
-
-    const captureImage = () => {
-        if (videoRef.current && canvasRef.current) {
-            const context = canvasRef.current.getContext("2d");
-            canvasRef.current.width = videoRef.current.videoWidth;
-            canvasRef.current.height = videoRef.current.videoHeight;
-            context.drawImage(
-                videoRef.current,
-                0,
-                0,
-                canvasRef.current.width,
-                canvasRef.current.height
-            );
-            setIsCaptured(true);
-
-            const dataUrl = canvasRef.current.toDataURL(imageFormat);
-            setImageDataUrl(dataUrl);
-        }
-    };
-
-    const retakeImage = () => {
-        const context = canvasRef.current.getContext("2d");
-        context.clearRect(
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-        );
-        setIsCaptured(false);
-        setImageDataUrl(null);
-        startCamera(selectedDeviceId);
-    };
-
-    const uploadImageAndNavigate = async () => {
-        if (imageDataUrl) {
-            const payload = {
-                base64Image: imageDataUrl,
-            };
-            console.log(payload);
-
-            try {
-                const uploadResponse = await fetch(
-                    "http://localhost:8000/api/images/upload",
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify(payload),
-                    }
-                );
-
-                if (!uploadResponse.ok) {
-                    throw new Error("Image upload failed");
-                }
-
-                navigate("/process");
-            } catch (error) {
-                console.error("Error uploading image:", error);
-            } finally {
-                retakeImage();
-            }
-        }
-    };
-
-    return (
-        <div className="container">
-            {error && <p className="error">{error}</p>}
-
-            {/* Media Devices Dropdown */}
-            <select
-                onChange={handleDeviceChange}
-                value={selectedDeviceId || ""}
-                className="device-dropdown"
-            >
-                {devices.map((device) => (
-                    <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Camera ${device.deviceId}`}
-                    </option>
-                ))}
-            </select>
-
-            <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                style={{
-                    display: isCaptured ? "none" : "block",
-                }}
-            />
-            <canvas
-                ref={canvasRef}
-                style={{ display: isCaptured ? "block" : "none" }}
-            />
-            {!isCaptured && (
-                <button
-                    onClick={() => navigate("/about")}
-                    className="button save"
-                >
-                    About
-                </button>
-            )}
-            {isCaptured ? (
-                <>
-                    <button onClick={retakeImage} className="button retake">
-                        Retake Image
-                    </button>
-                    <button
-                        onClick={uploadImageAndNavigate}
-                        className="button save"
-                    >
-                        Process
-                    </button>
-                </>
-            ) : (
-                <button onClick={captureImage} className="button capture">
-                    Capture Image
-                </button>
-            )}
+        {/* Upload zone */}
+        <div
+          className={`upload-zone ${isDragging ? "drag" : ""}`}
+          onClick={() => fileInputRef.current.click()}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+        >
+          <div className="upload-icon">📄</div>
+          <p><strong>Click to upload</strong> or drag &amp; drop</p>
+          <p>PNG, JPG, or PDF — pacemaker interrogation report</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            style={{ display: "none" }}
+            onChange={(e) => handleFile(e.target.files[0])}
+          />
         </div>
-    );
+
+        {/* Camera button (mobile) */}
+        <div className="divider-row">
+          <div className="divider-line" />
+          <span className="divider-text">or on mobile</span>
+          <div className="divider-line" />
+        </div>
+        <label className="btn-secondary">
+          📷 Take photo of report
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => handleFile(e.target.files[0])}
+          />
+        </label>
+
+        {/* File name */}
+        {currentFile && (
+          <p className="filename">Selected: {currentFile.name}</p>
+        )}
+
+        {/* Preview */}
+        {(previewSrc || isPdf) && (
+          <div className="preview-wrap">
+            {previewSrc
+              ? <img src={previewSrc} alt="Report preview" className="preview-img" />
+              : (
+                <div className="pdf-preview">
+                  <div className="pdf-icon">📋</div>
+                  <p>{currentFile?.name}</p>
+                  <p className="pdf-sub">PDF will be converted and analyzed</p>
+                </div>
+              )
+            }
+          </div>
+        )}
+
+        {/* Analyze button */}
+        <button
+          className="btn"
+          style={{ marginTop: 14 }}
+          onClick={analyze}
+          disabled={!currentFile || isAnalyzing}
+        >
+          {isAnalyzing ? "Analyzing…" : "Analyze Report"}
+        </button>
+
+        {/* Spinner */}
+        {isAnalyzing && (
+          <div className="spinner">
+            <span className="dot">Running OCR and extracting clinical fields</span>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && <div className="error-box">Error: {error}</div>}
+
+        {/* Results */}
+        {results && (
+          <div className="results-section">
+            <h2>Extracted Clinical Data</h2>
+            <table className="results-table">
+              <thead>
+                <tr><th>Field</th><th>Extracted Value</th></tr>
+              </thead>
+              <tbody>
+                {Object.entries(LABELS).map(([key, label]) => (
+                  <tr key={key}>
+                    <td>{label}</td>
+                    <td>{formatValue(key, results[key])}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="nav-row">
+          <button className="btn-outline" onClick={() => navigate("/table")}>
+            View History
+          </button>
+          <button className="btn-outline" onClick={() => navigate("/about")}>
+            About
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default Camera;

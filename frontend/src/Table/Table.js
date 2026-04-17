@@ -1,116 +1,117 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import './Table.css';
+import "../App.css";
+import "./Table.css";
 
-const ROS = [
-    {
-        id: '1',
-        implantdate: 'Nov 27th, 2023',
-        impedance: '300,400,550',
-        battery: 'ON',
-        imagepath: 'images/10-25-2024.jpeg'
+function Table() {
+  const [data, setData]           = useState([]);
+  const [page, setPage]           = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const navigate = useNavigate();
 
-    },
-    {
-        id: '2',
-        implantdate: 'Nov 23rd, 2023',
-        impedance: '300,400,550',
-        battery: 'ON',
-        imagepath: 'images/10-25-2024.jpeg'
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const resp = await fetch(`${API_URL}/api/images/allimages`);
+      if (!resp.ok) throw new Error(`Server error ${resp.status}`);
+      const json = await resp.json();
+      setData(json);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
-]
+  };
 
-for (let i = 3; i < 100; i++) {
-    ROS.push({
-        id: i,
-        implantdate: `Jan ${i}th, 2021`,
-        impedance: '300,400,550',
-        battery: 'ON',
-        imagepath: 'images/10-25-2024.jpeg'
-    });
-}
+  useEffect(() => { fetchData(); }, []);
 
-const Table = ({ rows = ROS }) => {
-    const navigate = useNavigate();
+  const formatDate = (val) => {
+    if (!val || val === 10000) return <span className="unknown">—</span>;
+    const d = new Date(typeof val === "number" ? val : Number(val));
+    return isNaN(d) ? val : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  };
 
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5);
+  const formatBattery = (val) => {
+    if (!val) return <span className="unknown">—</span>;
+    return <span className={`badge ${val === "ON" ? "badge-on" : "badge-off"}`}>{val}</span>;
+  };
 
-    const [data, setData] = useState([]);
+  const paginated = data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+  const totalPages = Math.ceil(data.length / rowsPerPage);
 
-    const fetchData = async () => {
-        const response = await fetch('http://localhost:8000/api/images/allimages');
-        if (response.ok) {
-            const dat = await response.json();
-            console.log(dat);
-            setData(dat);
-        } else {
-            console.error('Error:', response.status, response.statusText);
-        }
-    };
+  return (
+    <div className="page">
+      <div className="card">
+        <h1>🫀 Pacey</h1>
+        <p className="subtitle">Patient history — {data.length} records</p>
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+        <div className="table-actions">
+          <button className="btn-outline" onClick={fetchData}>↻ Refresh</button>
+          <button className="btn" onClick={() => navigate("/camera")}>+ New Analysis</button>
+        </div>
 
-    const handleChangePage = (newPage) => {
-        setPage(newPage);
-    };
+        {loading && <div className="spinner"><span className="dot">Loading records</span></div>}
+        {error   && <div className="error-box">Error: {error}</div>}
 
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
-
-    return (
-        <div>
-            <button onClick={fetchData} className='button retake'>Refresh</button>
-            <table>
+        {!loading && !error && (
+          <>
+            <div className="table-wrap">
+              <table className="results-table history-table">
                 <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Implant Date</th>
-                        <th>Impedance</th>
-                        <th>Battery</th>
-                        <th>Manufacturer</th>
-                        <th>ImagePath</th>
-                    </tr>
+                  <tr>
+                    <th>ID</th>
+                    <th>Manufacturer</th>
+                    <th>Implant Date</th>
+                    <th>Impedance (Ω)</th>
+                    <th>Battery</th>
+                  </tr>
                 </thead>
                 <tbody>
-                    {(data || rows).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
-                        <tr key={row.id}>
-                            <td>{row.id}</td>
-                            <td>{row.implant_date}</td>
-                            <td>{row.impedance}</td>
-                            <td>{row.battery}</td>
-                            <td>{row.pacemaker_manufacturer}</td>
-                            <td>{row.image_path}</td>
-                        </tr>
-                    ))}
+                  {paginated.length === 0
+                    ? <tr><td colSpan={5} className="empty-row">No records yet</td></tr>
+                    : paginated.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.id}</td>
+                        <td>{row.pacemaker_manufacturer || <span className="unknown">—</span>}</td>
+                        <td>{formatDate(row.implant_date)}</td>
+                        <td>{row.impedance || <span className="unknown">—</span>}</td>
+                        <td>{formatBattery(row.battery)}</td>
+                      </tr>
+                    ))
+                  }
                 </tbody>
-            </table>
-            <div className="pagination">
-                <button onClick={() => handleChangePage(page - 1)} disabled={page === 0} className='button retake'>
-                    Previous
-                </button>
-                <span>Page {page + 1}</span>
-                <button className='button retake' onClick={() => handleChangePage(page + 1)} disabled={page >= Math.ceil((data || rows).length / rowsPerPage) - 1}>
-                    Next
-                </button>
-                <select value={rowsPerPage} onChange={handleChangeRowsPerPage}>
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                </select>
+              </table>
             </div>
 
-            <div className="button-container">
-                <button onClick={() => navigate("/About")} className="button retake">
-                    Back to About
-                </button>
-            </div>
-        </div>
-    );
-};
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  className="btn-outline"
+                  onClick={() => setPage(p => p - 1)}
+                  disabled={page === 0}
+                >← Prev</button>
+                <span>Page {page + 1} of {totalPages}</span>
+                <button
+                  className="btn-outline"
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page >= totalPages - 1}
+                >Next →</button>
+                <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(0); }}>
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                </select>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default Table;

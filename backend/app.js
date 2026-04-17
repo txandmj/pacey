@@ -9,7 +9,7 @@ const cors = require('cors');
 
 app.use(cors());
 // Middleware to parse JSON requests
-app.use(express.json({ limit: '10mb' })); // Increase limit if needed
+app.use(express.json({ limit: '30mb' }));
 
 // Create the uploads directory if it doesn't exist
 const uploadDir = path.join(__dirname, 'images');

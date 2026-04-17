@@ -1,22 +1,18 @@
-FROM node:latest
-# Use bash instead of sh
-SHELL ["/bin/bash", "-c"]
+FROM node:20-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get -y install python3 python3-pip
-RUN apt-get -y install python3.11-venv
-RUN python3 -m venv /venv/
-COPY backend/requirements.txt .
-RUN /venv/bin/pip3 install --no-cache-dir -r requirements.txt
+# Install Python + PyMuPDF system-wide (no venv needed in container)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 python3-pip && \
+    pip3 install --no-cache-dir --break-system-packages PyMuPDF && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY backend/package*.json ./
-
-RUN npm install
+RUN npm install --omit=dev
 
 COPY backend/ .
 
 EXPOSE 8000
 
 CMD ["node", "index.js"]
-

@@ -1,29 +1,40 @@
-table {
-    width: 100%;
-    border-collapse: collapse;
+.table-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.table-actions .btn { flex: 1; }
+.table-actions .btn-outline { flex: 0 0 auto; }
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-}
+.history-table { min-width: 480px; }
+.history-table td:first-child { width: auto; }
 
-th {
-    padding-top: 12px;
-    padding-bottom: 12px;
-    text-align: left;
-    background-color: #1d8f00;
-    color: white;
+.empty-row {
+  text-align: center;
+  padding: 32px !important;
+  color: #a0aec0;
+  font-style: italic;
 }
 
 .pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 0.88rem;
+  color: #4a5568;
 }
-
-.pagination button, .pagination select {
-    padding: 5px 10px;
-    margin: 0 5px;
+.pagination select {
+  padding: 6px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
