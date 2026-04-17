@@ -8,23 +8,37 @@ const KNOWN_BRANDS = [
 ];
 
 // keyword → chars to capture after it
-// Keys with ":" are intentionally specific to avoid noise (e.g. "device:" vs "device status")
 const PATTERNS = {
   'shock impedance':    8,
   'battery':            4,
-  'measured impedance': 15,  // Medtronic: "Measured Impedance 557ohms"
-  'impedance':          15,  // general fallback
+  'measured impedance': 15,  // Medtronic inline: "Measured Impedance 557ohms"
+  'impedance':          15,  // general inline fallback
   'implant':            26,  // covers "implanted: 10-Apr-2019" and "implant date: ..."
-  'device:':            32,  // MUST have colon — avoids "Device Status", "Device Information"
-  'pacemaker model:':   40,  // older Medtronic format: "Pacemaker Model: Medtronic Adapta ADDR01"
+  'device:':            32,  // colon required — avoids "Device Status", "Device Information"
+  'pacemaker model:':   40,  // older Medtronic: "Pacemaker Model: Medtronic Adapta ADDR01"
 };
 
-// Result keys for pattern variants
+// Result keys for pattern variants that differ from the key name
 const RESULT_KEY = {
   'device:':            'device',
   'pacemaker model:':   'device',
   'measured impedance': 'impedance',
 };
+
+// Scan full OCR text for impedance values.
+// Tesseract consistently misreads Ω as "q" in lowercase text.
+// Also handles: ohms, ohm, Ω, O (capital O).
+// Realistic pacemaker impedance range: 50–2500 Ω.
+function extractAllImpedanceValues(text) {
+  const matches = [];
+  const re = /\b(\d{2,4})\s*(?:q|ohms?|Ω|[oO](?=\s|\(|$))\b/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const val = parseInt(m[1]);
+    if (val >= 50 && val <= 2500) matches.push(String(val));
+  }
+  return [...new Set(matches)];
+}
 
 function cleanString(str) {
   return str.trim().replace(/[^\w\s.]/gi, '').trim();
@@ -38,7 +52,6 @@ function parseImplantDate(rawText) {
   let datePart;
 
   if (/date:/i.test(rawText)) {
-    // "implant date: 01/25/2010"
     datePart = rawText.split(/date:/i)[1];
   } else {
     // "implanted: 10-Apr-2019" or "implanted: 14.Jul-2015)"
@@ -49,8 +62,8 @@ function parseImplantDate(rawText) {
 
   datePart = datePart
     .trim()
-    .replace(/[)}\]]+.*$/, '')   // strip trailing ) and anything after
-    .replace(/\./g, '-')          // 14.Jul-2015 → 14-Jul-2015
+    .replace(/[)}\]]+.*$/, '')  // strip trailing ) and anything after
+    .replace(/\./g, '-')         // 14.Jul-2015 → 14-Jul-2015
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -72,11 +85,11 @@ function deduplicateDevice(arr) {
 
 function mapToCommonTerms(text) {
   const result = {
-    implant:          [],
-    impedance:        [],
-    battery:          [],
+    implant:           [],
+    impedance:         [],
+    battery:           [],
     'shock impedance': [],
-    device:           [],
+    device:            [],
   };
 
   // --- Direct brand name scan (most reliable) ---
@@ -84,14 +97,13 @@ function mapToCommonTerms(text) {
     if (text.includes(brand)) {
       const label = titleCase(brand);
       if (!result.device.includes(label)) {
-        result.device.unshift(label); // brand listed first
+        result.device.unshift(label);
       }
     }
   }
 
   // --- Keyword-based extraction ---
   for (const [key, windowSize] of Object.entries(PATTERNS)) {
-    // Escape special regex chars in key (e.g. the colon is safe, but be defensive)
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escapedKey})(.{0,${windowSize}})`, 'gi');
     let match;
@@ -114,7 +126,6 @@ function mapToCommonTerms(text) {
 
       // --- Device / model ---
       if (resultKey === 'device') {
-        // Strip trailing noise: "Serial Number", "SN:", "Date", "ID:", etc.
         cleaned = cleaned
           .replace(/\bserial\b.*/i, '')
           .replace(/\bsn\b.*/i, '')
@@ -123,7 +134,6 @@ function mapToCommonTerms(text) {
           .trim();
         if (!cleaned) continue;
 
-        // Skip if it duplicates a brand we already have (e.g. "Medtronic Amplia..." when "Medtronic" already added)
         const alreadyHasBrand = result.device.some(
           d => cleaned.toLowerCase().startsWith(d.toLowerCase().substring(0, 5))
         );
@@ -137,16 +147,20 @@ function mapToCommonTerms(text) {
 
   // --- Post-processing ---
 
+  // Scan full text for impedance values using OCR-aware pattern
+  // This handles tabular layouts where values appear on separate lines
+  const allOhms = extractAllImpedanceValues(text);
+  result.impedance.push(...allOhms);
+
   // Remove shock impedance values from regular impedance list
   result.impedance = result.impedance.filter(
     item => !result['shock impedance'].includes(item)
   );
 
-  // Deduplicate device list (same model string repeated across PDF pages)
-  result.device = deduplicateDevice(result.device);
-
-  // Deduplicate implant dates (same date on multiple pages)
-  result.implant = [...new Set(result.implant)];
+  // Deduplicate
+  result.impedance = [...new Set(result.impedance)];
+  result.device    = deduplicateDevice(result.device);
+  result.implant   = [...new Set(result.implant)];
 
   return result;
 }
