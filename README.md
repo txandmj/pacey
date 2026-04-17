@@ -133,23 +133,6 @@ Two sample pacemaker images are included for testing:
 
 ---
 
-## Deployment
-
-### Synology NAS (always-on, accessible on local network)
-
-1. Copy the `pacey/` folder to your NAS (e.g. `/volume1/docker/pacey`)
-2. SSH into the NAS:
-
-```bash
-ssh admin@<NAS-IP>
-cd /volume1/docker/pacey
-REACT_APP_API_URL=http://<NAS-IP>:8000 docker compose up --build -d
-```
-
-3. Access at `http://<NAS-IP>:3000` from any device on the same network
-
-> **Note:** The `REACT_APP_API_URL` variable bakes the backend address into the React build. It must be set to the NAS IP so mobile devices can reach the backend.
-
 ### Environment variables
 
 | Variable | Default | Description |

@@ -1,65 +1,30 @@
 services:
-  db:
-    image: mariadb:10.6.2
-    container_name: db_container
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: flask_app
-      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"
-    volumes:
-      - ./db/mysqldb:/var/lib/mysql
-      - ./db:/docker-entrypoint-initdb.d
-    networks:
-      - pacey_network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  backend:
+  pacey:
     build:
       context: .
-      dockerfile: dockerfiles/backend.Dockerfile
-    container_name: backend_container
+      dockerfile: dockerfiles/single.Dockerfile
+    container_name: pacey
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8000:8000"      # Frontend + API both served here
+    volumes:
+      - pacey_db:/var/lib/mysql          # MariaDB data persistence
+      - pacey_uploads:/app/images        # Uploaded report images
+      - pacey_tessdata:/root/.cache      # Tesseract language model cache
     environment:
-      DB_HOST: db
+      DB_HOST: 127.0.0.1
       DB_NAME: flask_app
       DB_USER: root
       DB_PASS: ""
       PORT: 8000
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - pacey_network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8000/api/images/allimages', r => process.exit(r.statusCode < 500 ? 0 : 1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8000', r => process.exit(r.statusCode < 500 ? 0 : 1))"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
-  frontend:
-    build:
-      context: .
-      dockerfile: dockerfiles/frontend.Dockerfile
-      args:
-        # Points frontend at the backend — change <NAS-IP> for NAS deployment
-        REACT_APP_API_URL: http://YOUR-NAS-IP:8000
-    container_name: frontend_container
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - pacey_network
-
-networks:
-  pacey_network:
+volumes:
+  pacey_db:
+  pacey_uploads:
+  pacey_tessdata:

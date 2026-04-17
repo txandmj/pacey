@@ -20,4 +20,13 @@ if (!fs.existsSync(uploadDir)) {
 // Use the image routes
 app.use('/api/images', imageRoutes);
 
+// Serve React frontend build
+const frontendBuild = path.join(__dirname, 'public');
+if (fs.existsSync(frontendBuild)) {
+    app.use(express.static(frontendBuild));
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(frontendBuild, 'index.html'));
+    });
+}
+
 module.exports = app;

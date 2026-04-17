@@ -15,7 +15,7 @@ function Table() {
     setLoading(true);
     setError(null);
     try {
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+      const API_URL = process.env.REACT_APP_API_URL ?? "";
       const resp = await fetch(`${API_URL}/api/images/allimages`);
       if (!resp.ok) throw new Error(`Server error ${resp.status}`);
       const json = await resp.json();

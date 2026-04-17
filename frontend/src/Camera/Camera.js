@@ -53,7 +53,7 @@ function Camera() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+        const API_URL = process.env.REACT_APP_API_URL ?? "";
         const resp = await fetch(`${API_URL}/api/images/upload`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
