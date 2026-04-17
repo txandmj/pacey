@@ -48,7 +48,7 @@ These are the fields physicians need before surgery (per UCI Medical Center work
 - **PDF support** — converts multi-page PDFs to images via PyMuPDF before OCR
 - **Inline results** — extracted fields displayed immediately below the upload without navigation
 - **Patient history** — all analyzed reports stored in MariaDB, viewable in paginated table
-- **Fully containerized** — runs as 3 Docker containers (frontend, backend, database)
+- **Fully containerized** — runs as a single Docker container (MariaDB + Node.js backend + React frontend)
 
 ---
 
@@ -70,10 +70,10 @@ These are the fields physicians need before surgery (per UCI Medical Center work
 
 ```
 pacey/
-├── compose.yaml                  # Docker Compose — all 3 services
+├── compose.yaml                      # Docker Compose — single container
 ├── dockerfiles/
-│   ├── backend.Dockerfile        # Node.js + Python/PyMuPDF
-│   └── frontend.Dockerfile       # React build → static server
+│   ├── single.Dockerfile             # MariaDB + Node.js + React (all-in-one)
+│   └── entrypoint-single.sh          # Starts MariaDB then Node.js
 ├── backend/
 │   ├── index.js                  # Entry point (Express server)
 │   ├── app.js                    # Middleware, routes setup
@@ -114,12 +114,11 @@ docker compose up --build
 
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
+| App (frontend + API) | http://localhost:8000 |
 
 ### Usage
 
-1. Open **http://localhost:3000**
+1. Open **http://localhost:8000**
 2. **Upload** a pacemaker report image or PDF (or tap **Take photo** on mobile)
 3. Click **Analyze Report**
 4. View extracted clinical fields inline
@@ -137,8 +136,7 @@ Two sample pacemaker images are included for testing:
 
 | Variable | Default | Description |
 |---|---|---|
-| `REACT_APP_API_URL` | `http://localhost:8000` | Backend URL (set to NAS/server IP for remote access) |
-| `DB_HOST` | `db` | MariaDB hostname (Docker service name) |
+| `DB_HOST` | `127.0.0.1` | MariaDB host (localhost inside single container) |
 | `DB_NAME` | `flask_app` | Database name |
 | `DB_USER` | `root` | Database user |
 | `DB_PASS` | *(empty)* | Database password |
@@ -193,11 +191,11 @@ open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specifie
 ```
 Start Docker Desktop and wait for it to fully load before running compose commands.
 
-**Database container unhealthy / backend won't start:**
-The DB takes ~20 seconds to initialize on first run. The backend waits via `depends_on: condition: service_healthy`. If it times out, run:
+**Node.js starts before MariaDB is ready:**
+On first run, MariaDB initialization takes ~20 seconds. The entrypoint script waits for MariaDB before starting Node.js. If the container exits unexpectedly, run:
 ```bash
 docker compose down
-docker compose up
+docker compose up --build
 ```
 
 **Slow first analysis:**
