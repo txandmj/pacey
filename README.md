@@ -5,6 +5,7 @@ Pacey extracts key pre-surgery clinical fields from pacemaker interrogation repo
 Built at the **UCI MSWE Fall 2024 Hackathon** in collaboration with UCI Medical Center physicians.
 
 🎬 **[Watch Demo on YouTube](https://www.youtube.com/watch?v=eQ3UB23fN90)**
+🚀 **[Live Deployment](http://192.168.98.25:8005/camera)** *(local network only)*
 
 ---
 
