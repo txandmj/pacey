@@ -70,7 +70,7 @@ function parseImplantDate(rawText) {
   const parsed = anydateparser.attempt(datePart);
   if (!parsed || !parsed.year) return null;
 
-  return new Date(parsed.year, (parsed.month || 1) - 1, parsed.day || 1).getTime();
+  return Date.UTC(parsed.year, (parsed.month || 1) - 1, parsed.day || 1);
 }
 
 function deduplicateDevice(arr) {
