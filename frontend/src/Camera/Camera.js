@@ -74,7 +74,7 @@ function Camera() {
   const formatValue = (key, val) => {
     if (key === "implant_date") {
       return typeof val === "number" && val > 100000
-        ? new Date(val).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        ? new Date(val).toLocaleDateString("en-US", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" })
         : <span className="unknown">not found</span>;
     }
     if (key === "battery") {

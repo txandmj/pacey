@@ -32,7 +32,7 @@ function Table() {
   const formatDate = (val) => {
     if (!val || val === 10000) return <span className="unknown">—</span>;
     const d = new Date(typeof val === "number" ? val : Number(val));
-    return isNaN(d) ? val : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    return isNaN(d) ? val : d.toLocaleDateString("en-US", { timeZone: "UTC", year: "numeric", month: "short", day: "numeric" });
   };
 
   const formatBattery = (val) => {
